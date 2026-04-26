@@ -263,5 +263,11 @@
 
     $('msg-input').onkeypress = e => e.key === 'Enter' && handleSendText();
 </script>
+    <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script>
+
 </body>
 </html>
