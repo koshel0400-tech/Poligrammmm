@@ -73,6 +73,9 @@
         
         #file-progress-container { width: 100%; background: var(--bg); height: 4px; display: none; }
         #file-progress-bar { height: 100%; background: var(--primary); width: 0%; transition: 0.1s; }
+
+        /* Исправление размера плеера */
+        audio.custom-player { width: 220px; height: 45px; margin-top: 8px; display: block; }
     </style>
 </head>
 <body>
@@ -96,11 +99,13 @@
             <div class="card">
                 <h3 style="margin-bottom: 10px;">Подключение</h3>
                 <div class="instruction">
-                    <b>Хост:</b> Создай Offer -> Отправь другу -> Вставь Answer -> Подключи.<br><br>
-                    <b>Клиент:</b> Вставь Offer -> Создай Answer -> Отправь другу.
+                    <b>Инструкция:</b><br>
+                    1. Нажми "СОЗДАТЬ OFFER", скопируй код и скинь другу.<br>
+                    2. Друг вставляет твой код в поле Offer и жмет "СОЗДАТЬ ANSWER".<br>
+                    3. Друг кидает тебе свой Answer, ты вставляешь его в нижнее поле и жмешь "ПОДКЛЮЧИТЬ".
                 </div>
-                <textarea id="sdp-offer" placeholder="Offer (Код инициатора)"></textarea>
-                <textarea id="sdp-answer" placeholder="Answer (Код ответчика)"></textarea>
+                <textarea id="sdp-offer" placeholder="Код Offer"></textarea>
+                <textarea id="sdp-answer" placeholder="Код Answer"></textarea>
                 <div style="display: flex; gap: 8px;">
                     <button class="btn btn-primary" onclick="doOffer()">СОЗДАТЬ OFFER</button>
                     <button class="btn btn-primary" onclick="doAnswer()">СОЗДАТЬ ANSWER</button>
@@ -242,37 +247,35 @@
     // --- ЗВОНКИ ---
     $('call-trigger').onclick = async () => {
         try {
-            // Если navigator.mediaDevices отсутствует, это значит файл открыт локально
-            if (!navigator.mediaDevices) throw new Error("Браузер блокирует доступ (требуется HTTPS)");
-            
+            if (!navigator.mediaDevices) throw new Error("Требуется HTTPS");
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             stream.getTracks().forEach(track => pc.addTrack(track, stream));
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-            alert("Вызов начат. Отправьте новый Offer другу.");
-        } catch(e) { 
-            alert("Микрофон недоступен: " + e.message); 
-        }
+            alert("Вызов начат. Для передачи звука нужно ОБНОВИТЬ СОЕДИНЕНИЕ (обменяться кодами заново).");
+        } catch(e) { alert("Ошибка: " + e.message); }
     };
 
     // --- ГОЛОСОВЫЕ ---
     const startRecord = async () => {
         try {
             if (!navigator.mediaDevices) throw new Error("Требуется HTTPS");
-            
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // Авто-выбор формата для разных устройств
             mediaRecorder = new MediaRecorder(stream);
             audioChunks = [];
+            
             mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
             mediaRecorder.onstop = () => {
-                const blob = new Blob(audioChunks, { type: 'audio/ogg' });
-                sendFile(new File([blob], "voice_msg.ogg", {type: 'audio/ogg'}), 'audio');
+                const mimeType = mediaRecorder.mimeType;
+                const blob = new Blob(audioChunks, { type: mimeType });
+                sendFile(new File([blob], "voice_message", {type: mimeType}), 'audio');
             };
+            
             mediaRecorder.start();
             $('voice-btn').classList.add('recording');
-        } catch(e) { 
-            alert("Ошибка микрофона: " + e.message + "\nОткройте чат через защищенное соединение (https)."); 
-        }
+        } catch(e) { alert("Ошибка микрофона: " + e.message); }
     };
 
     const stopRecord = () => {
@@ -287,7 +290,7 @@
     $('voice-btn').addEventListener('touchstart', (e) => { e.preventDefault(); startRecord(); });
     $('voice-btn').addEventListener('touchend', stopRecord);
 
-    // --- ФАЙЛЫ ---
+    // --- ПЕРЕДАЧА ФАЙЛОВ ---
     async function handleMedia() {
         const file = $('media-input').files[0];
         if (file) sendFile(file, file.type.startsWith('video') ? 'video' : 'image');
@@ -324,7 +327,9 @@
 
     function saveMsg(content, side, type, name = '') {
         const msg = { content, side, type, name, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
-        if (type === 'text' || (typeof content === 'string' && content.length < 1000000)) {
+        
+        // Сохраняем в историю только текст и голосовые (если маленькие), чтобы не забить localStorage
+        if (type === 'text' || type === 'audio' || (typeof content === 'string' && content.length < 500000)) {
             history.push(msg);
             if (history.length > 50) history.shift();
             try { localStorage.setItem('pg_history', JSON.stringify(history)); } catch(e) {}
@@ -344,7 +349,8 @@
             inner = `<video src="${m.content}" controls class="media-content"></video>`;
             inner += `<a href="${m.content}" download="${m.name || 'video.mp4'}" class="download-link">Скачать видео</a>`;
         } else if (m.type === 'audio') {
-            inner = `<audio src="${m.content}" controls style="width:100%; margin-top:8px;"></audio>`;
+            // Исправленный плеер с фиксированными размерами
+            inner = `<audio src="${m.content}" controls class="custom-player"></audio>`;
         }
         
         div.innerHTML = inner + `<div style="font-size:9px; opacity:0.5; text-align:right; margin-top:4px;">${m.time}</div>`;
@@ -358,7 +364,6 @@
         $('chat-messages').scrollTop = $('chat-messages').scrollHeight;
     }
 
-    // ВОЗВРАЩЕННАЯ ФУНКЦИЯ ОЧИСТКИ ИСТОРИИ
     function clearMyHistory() {
         if (confirm("Удалить историю у себя?")) {
             history = [];
@@ -368,7 +373,10 @@
     }
 
     function closeConnection() {
-        if (confirm("Выйти и очистить историю?")) { localStorage.clear(); location.reload(); }
+        if (confirm("Выйти? Это очистит ник и историю.")) { 
+            localStorage.clear(); 
+            location.reload(); 
+        }
     }
 
     $('msg-input').onkeypress = e => e.key === 'Enter' && handleSendText();
