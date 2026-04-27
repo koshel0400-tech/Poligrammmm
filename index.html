@@ -1,4 +1,4 @@
-<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<meta name='viewport' content='width=device-width, initial-scale=1'/><meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -124,7 +124,10 @@
                 <span class="status-dot" style="background: var(--primary);"></span>
                 <span id="chat-partner-name" style="font-weight:bold;">Чат</span>
             </div>
-            <button class="btn btn-secondary" style="width:auto; padding:5px 10px;" onclick="closeConnection()">Выйти</button>
+            <div style="display: flex; gap: 5px;">
+                <button class="btn btn-secondary" style="width:auto; padding:5px 10px; font-size: 12px; border-color: var(--text-dim);" onclick="clearMyHistory()">Очистить у себя</button>
+                <button class="btn btn-secondary" style="width:auto; padding:5px 10px; font-size: 12px;" onclick="closeConnection()">Выйти</button>
+            </div>
         </header>
         
         <div id="chat-messages"></div>
@@ -142,14 +145,25 @@
     let history = JSON.parse(localStorage.getItem('pg_history') || '[]');
 
     window.onload = () => {
-        if (!myNick) showScreen('screen-nick');
-        else showScreen('screen-connect');
+        // Проверяем сохраненный экран
+        const lastScreen = localStorage.getItem('pg_last_screen');
+        
+        if (!myNick) {
+            showScreen('screen-nick');
+        } else if (lastScreen === 'screen-chat') {
+            showScreen('screen-chat');
+            renderHistory();
+        } else {
+            showScreen('screen-connect');
+        }
         initRTC();
     };
 
     function showScreen(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
         $(id).classList.remove('hidden');
+        // Сохраняем текущий экран, чтобы не сбрасывалось при перезагрузке
+        localStorage.setItem('pg_last_screen', id);
     }
 
     function initRTC() {
@@ -165,13 +179,16 @@
         };
     }
 
-    // Логика кнопок
     function handleSaveNick() {
         const n = $('nick-input').value.trim();
         if (n) { localStorage.setItem('pg_nick', n); myNick = n; showScreen('screen-connect'); }
     }
 
-    function clearNick() { localStorage.removeItem('pg_nick'); location.reload(); }
+    function clearNick() { 
+        localStorage.removeItem('pg_nick'); 
+        localStorage.removeItem('pg_last_screen');
+        location.reload(); 
+    }
 
     async function doOffer() {
         dataChannel = pc.createDataChannel("chat");
@@ -209,7 +226,6 @@
         };
     }
 
-    // Сообщения и Медиа
     function handleSendText() {
         const val = $('msg-input').value.trim();
         if (val && dataChannel?.readyState === "open") {
@@ -254,20 +270,30 @@
 
     function renderHistory() { $('chat-messages').innerHTML = ""; history.forEach(renderMsg); }
 
-    function closeConnection() {
-        if (confirm("Закрыть чат и очистить историю?")) {
+    // Очистка только у себя
+    function clearMyHistory() {
+        if (confirm("Очистить историю сообщений только у вас?")) {
+            history = [];
             localStorage.removeItem('pg_history');
+            renderHistory();
+        }
+    }
+
+    function closeConnection() {
+        if (confirm("Закрыть чат и очистить всю историю?")) {
+            localStorage.removeItem('pg_history');
+            localStorage.removeItem('pg_last_screen');
             location.reload();
         }
     }
 
     $('msg-input').onkeypress = e => e.key === 'Enter' && handleSendText();
 </script>
-    <script>
+<script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js');
   }
 </script>
 
 </body>
-</html>
+    </html>
