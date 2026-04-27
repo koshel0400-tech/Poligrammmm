@@ -23,7 +23,6 @@
         .screen { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--bg); z-index: 10; }
         .hidden { display: none !important; }
 
-        /* Шапка */
         header { 
             height: 60px; padding: 0 16px; display: flex; align-items: center; 
             border-bottom: 1px solid var(--border); background: var(--surface); 
@@ -31,7 +30,6 @@
         }
         header h1 { font-size: 20px; color: var(--primary); font-weight: 800; }
 
-        /* Контейнеры форм */
         .container { padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
         .card { 
             background: var(--surface); padding: 24px; border-radius: 24px; 
@@ -39,7 +37,6 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
-        /* Поля ввода */
         textarea, .input-text { 
             width: 100%; background: var(--bg); border: 1px solid var(--border); 
             color: #fff; padding: 12px; border-radius: 12px; margin: 8px 0; 
@@ -47,35 +44,32 @@
         }
         textarea { height: 80px; font-family: monospace; font-size: 10px; }
         
-        .btn { 
-            width: 100%; padding: 14px; border-radius: 12px; font-weight: bold; 
-            cursor: pointer; border: none; transition: 0.2s; margin-top: 5px;
-        }
+        .btn { width: 100%; padding: 14px; border-radius: 12px; font-weight: bold; cursor: pointer; border: none; transition: 0.2s; margin-top: 5px; }
         .btn-primary { background: var(--primary); color: #000; }
         .btn-secondary { background: var(--accent); color: #fff; border: 1px solid var(--border); }
-        .btn-danger { background: none; color: var(--error); border: 1px solid var(--error); margin-top: 15px; }
 
-        /* Чат */
         #chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+        
+        /* Исправление: Текст больше не ломает верстку */
         .bubble { 
             max-width: 85%; padding: 10px 14px; border-radius: 18px; 
-            font-size: 15px; line-height: 1.4; position: relative; 
+            font-size: 15px; line-height: 1.4; position: relative;
+            word-wrap: break-word; overflow-wrap: break-word; word-break: break-all;
         }
         .bubble.me { align-self: flex-end; background: var(--primary); color: #000; border-bottom-right-radius: 4px; }
         .bubble.partner { align-self: flex-start; background: var(--surface); border-bottom-left-radius: 4px; }
         
         .media-content { margin-top: 8px; border-radius: 12px; max-width: 100%; display: block; border: 1px solid rgba(255,255,255,0.1); }
-        .download-link { font-size: 11px; color: inherit; opacity: 0.7; display: block; margin-top: 5px; }
+        .download-link { font-size: 11px; color: inherit; opacity: 0.8; display: block; margin-top: 8px; text-decoration: underline; font-weight: bold; }
 
-        /* Ввод в чате */
-        .chat-input-bar { 
-            padding: 12px; background: var(--surface); border-top: 1px solid var(--border); 
-            display: flex; gap: 10px; align-items: center;
-        }
+        .chat-input-bar { padding: 12px; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
         .chat-input-bar input { flex: 1; background: var(--bg); border: none; color: #fff; padding: 12px; border-radius: 20px; outline: none; }
 
-        .instruction { font-size: 11px; color: var(--text-dim); margin-bottom: 15px; line-height: 1.4; }
+        .instruction { font-size: 11px; color: var(--text-dim); margin-bottom: 15px; line-height: 1.4; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: gray; display: inline-block; margin-right: 5px; }
+        
+        #file-progress-container { width: 100%; background: var(--bg); height: 4px; display: none; position: relative; }
+        #file-progress-bar { height: 100%; background: var(--primary); width: 0%; transition: width 0.1s; }
     </style>
 </head>
 <body>
@@ -84,7 +78,6 @@
         <div class="container" style="justify-content: center;">
             <div class="card">
                 <h1 style="color: var(--primary); text-align: center; margin-bottom: 10px;">POLIGRAM</h1>
-                <p style="text-align: center; color: var(--text-dim); margin-bottom: 20px;">Введите ваш ник для начала</p>
                 <input type="text" id="nick-input" class="input-text" placeholder="Ваш ник...">
                 <button class="btn btn-primary" onclick="handleSaveNick()">ПРОДОЛЖИТЬ</button>
             </div>
@@ -98,40 +91,33 @@
         </header>
         <div class="container">
             <div class="card">
-                <h3 style="margin-bottom: 10px;">Ручной WebRTC</h3>
+                <h3 style="margin-bottom: 10px;">Подключение</h3>
                 <div class="instruction">
-                    <b>Хост:</b> Создай Offer -> Отправь другу -> Вставь Answer -> Подключи.<br>
+                    <b>Хост:</b> Создай Offer -> Отправь другу -> Вставь Answer -> Подключи.<br><br>
                     <b>Клиент:</b> Вставь Offer -> Создай Answer -> Отправь другу.
                 </div>
-                
                 <textarea id="sdp-offer" placeholder="Offer (Код инициатора)"></textarea>
                 <textarea id="sdp-answer" placeholder="Answer (Код ответчика)"></textarea>
-                
                 <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-primary" style="font-size:12px;" onclick="doOffer()">СОЗДАТЬ OFFER</button>
-                    <button class="btn btn-primary" style="font-size:12px;" onclick="doAnswer()">СОЗДАТЬ ANSWER</button>
+                    <button class="btn btn-primary" onclick="doOffer()">СОЗДАТЬ OFFER</button>
+                    <button class="btn btn-primary" onclick="doAnswer()">СОЗДАТЬ ANSWER</button>
                 </div>
-                <button class="btn btn-primary" style="margin-top:10px; background:#fff;" onclick="doConnect()">ПОДКЛЮЧИТЬ ANSWER</button>
-                
-                <div id="status-text" style="text-align:center; font-size:12px; margin-top:15px; color:yellow;">Готов к работе</div>
+                <button class="btn btn-primary" style="margin-top:10px; background:#fff; color:#000;" onclick="doConnect()">ПОДКЛЮЧИТЬ ANSWER</button>
+                <div id="status-text" style="text-align:center; font-size:12px; margin-top:15px; color:yellow;">Ожидание действий...</div>
             </div>
         </div>
     </div>
 
     <div id="screen-chat" class="screen hidden">
         <header>
-            <div>
-                <span class="status-dot" style="background: var(--primary);"></span>
-                <span id="chat-partner-name" style="font-weight:bold;">Чат</span>
-            </div>
+            <div><span class="status-dot" id="status-dot"></span><span id="chat-partner-name">Чат</span></div>
             <div style="display: flex; gap: 5px;">
-                <button class="btn btn-secondary" style="width:auto; padding:5px 10px; font-size: 12px; border-color: var(--text-dim);" onclick="clearMyHistory()">Очистить у себя</button>
-                <button class="btn btn-secondary" style="width:auto; padding:5px 10px; font-size: 12px;" onclick="closeConnection()">Выйти</button>
+                <button class="btn-secondary" style="padding:5px 10px; border-radius:8px; font-size:11px;" onclick="clearMyHistory()">Очистить у себя</button>
+                <button class="btn-secondary" style="padding:5px 10px; border-radius:8px; font-size:11px;" onclick="closeConnection()">Выход</button>
             </div>
         </header>
-        
         <div id="chat-messages"></div>
-
+        <div id="file-progress-container"><div id="file-progress-bar"></div></div>
         <div class="chat-input-bar">
             <label style="cursor:pointer; font-size:20px;">📎<input type="file" id="media-input" hidden onchange="handleMedia()"></label>
             <input type="text" id="msg-input" placeholder="Сообщение...">
@@ -143,18 +129,15 @@
     const $ = id => document.getElementById(id);
     let pc, dataChannel, myNick = localStorage.getItem('pg_nick');
     let history = JSON.parse(localStorage.getItem('pg_history') || '[]');
+    let incomingChunks = {}, currentFileMeta = null;
 
+    // При загрузке всегда идем на экран подключения, чтобы восстановить связь
     window.onload = () => {
-        // Проверяем сохраненный экран
-        const lastScreen = localStorage.getItem('pg_last_screen');
-        
         if (!myNick) {
             showScreen('screen-nick');
-        } else if (lastScreen === 'screen-chat') {
-            showScreen('screen-chat');
-            renderHistory();
         } else {
             showScreen('screen-connect');
+            // Если была история, она подгрузится, когда откроется чат
         }
         initRTC();
     };
@@ -162,19 +145,19 @@
     function showScreen(id) {
         document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
         $(id).classList.remove('hidden');
-        // Сохраняем текущий экран, чтобы не сбрасывалось при перезагрузке
-        localStorage.setItem('pg_last_screen', id);
     }
 
     function initRTC() {
         pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        
         pc.ondatachannel = e => setupChannel(e.channel);
+        
         pc.onicecandidate = e => {
             if (!e.candidate && pc.localDescription) {
                 const sdp = btoa(JSON.stringify(pc.localDescription));
                 if (pc.localDescription.type === 'offer') $('sdp-offer').value = sdp;
                 else $('sdp-answer').value = sdp;
-                $('status-text').innerText = "Код сформирован! Скопируйте его.";
+                $('status-text').innerText = "Код готов! Скопируйте его.";
             }
         };
     }
@@ -184,45 +167,76 @@
         if (n) { localStorage.setItem('pg_nick', n); myNick = n; showScreen('screen-connect'); }
     }
 
-    function clearNick() { 
-        localStorage.removeItem('pg_nick'); 
-        localStorage.removeItem('pg_last_screen');
-        location.reload(); 
-    }
+    function clearNick() { localStorage.clear(); location.reload(); }
 
     async function doOffer() {
-        dataChannel = pc.createDataChannel("chat");
-        setupChannel(dataChannel);
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        $('status-text').innerText = "Генерация Offer...";
+        try {
+            dataChannel = pc.createDataChannel("chat");
+            setupChannel(dataChannel);
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            $('status-text').innerText = "Генерация Offer...";
+        } catch(e) { alert("Ошибка: " + e.message); }
     }
 
     async function doAnswer() {
         const o = $('sdp-offer').value.trim();
-        if (!o) return alert("Вставьте Offer!");
-        await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(o))));
-        const a = await pc.createAnswer();
-        await pc.setLocalDescription(a);
-        $('status-text').innerText = "Генерация Answer...";
+        if (!o) return alert("Сначала вставьте Offer от друга!");
+        try {
+            await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(o))));
+            const a = await pc.createAnswer();
+            await pc.setLocalDescription(a);
+            $('status-text').innerText = "Генерация Answer...";
+        } catch(e) { alert("Неверный код Offer"); }
     }
 
     async function doConnect() {
         const a = $('sdp-answer').value.trim();
-        if (a) await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(a))));
+        if (!a) return alert("Вставьте Answer от друга!");
+        try {
+            await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(a))));
+            $('status-text').innerText = "Попытка подключения...";
+        } catch(e) { alert("Неверный код Answer"); }
     }
 
     function setupChannel(chan) {
         dataChannel = chan;
+        dataChannel.binaryType = 'arraybuffer'; // Нужно для отправки файлов чанками
+
         dataChannel.onopen = () => {
+            $('status-dot').style.background = 'var(--primary)';
             showScreen('screen-chat');
             renderHistory();
             dataChannel.send(JSON.stringify({type:'nick', val: myNick}));
         };
+
         dataChannel.onmessage = e => {
-            const d = JSON.parse(e.data);
-            if (d.type === 'nick') $('chat-partner-name').innerText = d.val;
-            else saveMsg(d.content, 'partner', d.type, d.name);
+            if (typeof e.data === 'string') {
+                const d = JSON.parse(e.data);
+                if (d.type === 'nick') {
+                    $('chat-partner-name').innerText = d.val;
+                } else if (d.type === 'file-start') {
+                    currentFileMeta = d;
+                    incomingChunks[d.name] = [];
+                } else if (d.type === 'file-end') {
+                    const blob = new Blob(incomingChunks[d.name], { type: d.mime });
+                    const url = URL.createObjectURL(blob);
+                    saveMsg(url, 'partner', d.fileType, d.name);
+                    delete incomingChunks[d.name];
+                } else {
+                    saveMsg(d.content, 'partner', d.type, d.name);
+                }
+            } else {
+                if (currentFileMeta) {
+                    incomingChunks[currentFileMeta.name].push(e.data);
+                }
+            }
+        };
+
+        dataChannel.onclose = () => {
+            $('status-dot').style.background = 'gray';
+            alert("Связь потеряна. Обменяйтесь кодами заново.");
+            location.reload(); // Перезагружаем, чтобы сбросить состояние RTC
         };
     }
 
@@ -235,44 +249,72 @@
         }
     }
 
-    function handleMedia() {
+    async function handleMedia() {
         const file = $('media-input').files[0];
         if (!file || dataChannel?.readyState !== "open") return;
-        const reader = new FileReader();
-        reader.onload = e => {
-            const type = file.type.startsWith('video') ? 'video' : 'image';
-            dataChannel.send(JSON.stringify({type, content: e.target.result, name: file.name}));
-            saveMsg(e.target.result, 'me', type, file.name);
-        };
-        reader.readAsDataURL(file);
+
+        if (file.size > 100 * 1024 * 1024) return alert("Максимум 100 МБ");
+
+        $('file-progress-container').style.display = 'block';
+        const chunkSize = 16384; 
+        const type = file.type.startsWith('video') ? 'video' : 'image';
+        
+        dataChannel.send(JSON.stringify({type: 'file-start', name: file.name, mime: file.type, fileType: type}));
+
+        const buffer = await file.arrayBuffer();
+        for (let i = 0; i < buffer.byteLength; i += chunkSize) {
+            const chunk = buffer.slice(i, i + chunkSize);
+            dataChannel.send(chunk);
+            $('file-progress-bar').style.width = ((i / buffer.byteLength) * 100) + '%';
+        }
+        
+        dataChannel.send(JSON.stringify({type: 'file-end', name: file.name, fileType: type, mime: file.type}));
+        $('file-progress-container').style.display = 'none';
+        $('file-progress-bar').style.width = '0%';
+
+        const localUrl = URL.createObjectURL(file);
+        saveMsg(localUrl, 'me', type, file.name);
     }
 
     function saveMsg(content, side, type, name = '') {
         const msg = { content, side, type, name, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
-        history.push(msg);
-        localStorage.setItem('pg_history', JSON.stringify(history));
+        
+        // В localStorage сохраняем только текст и маленькие картинки (до 1МБ), чтобы не переполнить память
+        if (type === 'text' || (typeof content === 'string' && content.length < 1000000)) {
+            history.push(msg);
+            if (history.length > 50) history.shift();
+            try { localStorage.setItem('pg_history', JSON.stringify(history)); } catch(e) { console.log("Память заполнена"); }
+        }
         renderMsg(msg);
     }
 
     function renderMsg(m) {
         const div = document.createElement('div');
         div.className = `bubble ${m.side}`;
-        let html = `<div>${m.type === 'text' ? m.content : ''}</div>`;
+        let inner = m.type === 'text' ? `<div>${m.content}</div>` : '';
+        
         if (m.type === 'image') {
-            html = `<img src="${m.content}" class="media-content"><a href="${m.content}" download="${m.name}" class="download-link">Скачать фото</a>`;
-        } else if (m.type === 'video') {
-            html = `<video src="${m.content}" controls class="media-content"></video><a href="${m.content}" download="${m.name}" class="download-link">Скачать видео</a>`;
+            inner = `<img src="${m.content}" class="media-content">`;
+            inner += `<a href="${m.content}" download="${m.name || 'image.jpg'}" class="download-link">Скачать фото</a>`;
         }
-        div.innerHTML = html + `<div style="font-size:9px; opacity:0.5; text-align:right; margin-top:4px;">${m.time}</div>`;
+        if (m.type === 'video') {
+            inner = `<video src="${m.content}" controls class="media-content"></video>`;
+            inner += `<a href="${m.content}" download="${m.name || 'video.mp4'}" class="download-link">Скачать видео</a>`;
+        }
+        
+        div.innerHTML = inner + `<div style="font-size:9px; opacity:0.5; text-align:right; margin-top:4px;">${m.time}</div>`;
         $('chat-messages').appendChild(div);
         $('chat-messages').scrollTop = $('chat-messages').scrollHeight;
     }
 
-    function renderHistory() { $('chat-messages').innerHTML = ""; history.forEach(renderMsg); }
+    function renderHistory() {
+        $('chat-messages').innerHTML = "";
+        history.forEach(renderMsg);
+        $('chat-messages').scrollTop = $('chat-messages').scrollHeight;
+    }
 
-    // Очистка только у себя
     function clearMyHistory() {
-        if (confirm("Очистить историю сообщений только у вас?")) {
+        if (confirm("Удалить историю у себя?")) {
             history = [];
             localStorage.removeItem('pg_history');
             renderHistory();
@@ -280,20 +322,13 @@
     }
 
     function closeConnection() {
-        if (confirm("Закрыть чат и очистить всю историю?")) {
-            localStorage.removeItem('pg_history');
-            localStorage.removeItem('pg_last_screen');
+        if (confirm("Выйти? Это очистит ник и историю.")) {
+            localStorage.clear();
             location.reload();
         }
     }
 
     $('msg-input').onkeypress = e => e.key === 'Enter' && handleSendText();
 </script>
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-  }
-</script>
-
 </body>
-    </html>
+</html>
