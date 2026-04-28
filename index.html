@@ -13,6 +13,7 @@
             --text-dim: #949ba4;
             --border: #2f333d;
             --accent: #23272e;
+            --danger: #ff4d4d;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, system-ui, sans-serif; }
@@ -25,10 +26,12 @@
             height: 60px; padding: 0 16px; display: flex; align-items: center; 
             border-bottom: 1px solid var(--border); background: var(--surface); 
             justify-content: space-between; 
+            flex-shrink: 0;
         }
         header h1 { font-size: 20px; color: var(--primary); font-weight: 800; }
 
         .container { padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
+        
         .card { 
             background: var(--surface); padding: 24px; border-radius: 24px; 
             width: 100%; max-width: 400px; border: 1px solid var(--border);
@@ -45,6 +48,7 @@
         .btn { width: 100%; padding: 14px; border-radius: 12px; font-weight: bold; cursor: pointer; border: none; transition: 0.2s; margin-top: 5px; }
         .btn-primary { background: var(--primary); color: #000; }
         .btn-secondary { background: var(--accent); color: #fff; border: 1px solid var(--border); }
+        .btn-danger { background: var(--danger); color: #fff; }
 
         .instruction { font-size: 12px; color: var(--text-dim); margin-bottom: 15px; line-height: 1.5; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 10px; border: 1px solid var(--border); }
 
@@ -61,16 +65,29 @@
         .media-content { margin-top: 8px; border-radius: 12px; max-width: 100%; display: block; border: 1px solid rgba(255,255,255,0.1); }
         .download-link { font-size: 11px; color: inherit; opacity: 0.8; display: block; margin-top: 8px; text-decoration: underline; font-weight: bold; }
 
-        .chat-input-bar { padding: 12px; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
+        .chat-input-bar { padding: 12px; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
         .chat-input-bar input { flex: 1; background: var(--bg); border: none; color: #fff; padding: 12px; border-radius: 20px; outline: none; }
 
         .voice-btn { background: none; border: none; font-size: 24px; cursor: pointer; user-select: none; transition: 0.2s; }
-        .voice-btn.recording { color: #ff4d4d; transform: scale(1.3); }
+        .voice-btn.recording { color: var(--danger); transform: scale(1.3); }
 
         #file-progress-container { width: 100%; background: var(--bg); height: 4px; display: none; }
         #file-progress-bar { height: 100%; background: var(--primary); width: 0%; transition: 0.1s; }
-
         audio.custom-player { width: 220px; height: 45px; margin-top: 8px; display: block; }
+
+        /* --- НОВЫЕ СТИЛИ ДЛЯ СПИСКА ЧАТОВ --- */
+        #chats-list-container { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+        .chat-item { padding: 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--bg); cursor: pointer; transition: 0.1s; }
+        .chat-item:active { background: var(--surface); }
+        .chat-info { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+        .chat-name { font-weight: bold; color: #fff; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+        .chat-last-msg { font-size: 13px; color: var(--text-dim); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; max-width: 85%; }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: gray; display: inline-block; }
+        .status-dot.online { background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+        
+        .fab { position: fixed; bottom: 24px; right: 24px; width: 64px; height: 64px; border-radius: 32px; background: var(--primary); color: #000; font-size: 32px; border: none; box-shadow: 0 4px 15px rgba(0,210,106,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 100; transition: 0.1s; }
+        .fab:active { transform: scale(0.9); }
+        .empty-state { text-align: center; color: var(--text-dim); margin-top: 50px; font-size: 14px; padding: 20px; }
     </style>
 </head>
 <body>
@@ -85,10 +102,19 @@
         </div>
     </div>
 
-    <div id="screen-connect" class="screen hidden">
+    <div id="screen-main" class="screen hidden">
         <header>
             <h1>POLIGRAM</h1>
             <button onclick="clearNick()" style="background:none; border:none; color:var(--text-dim); font-size:12px;">Сменить ник</button>
+        </header>
+        <div id="chats-list-container">
+            </div>
+        <button class="fab" onclick="openConnectScreen()">+</button>
+    </div>
+
+    <div id="screen-connect" class="screen hidden">
+        <header>
+            <h1>Добавить собеседника</h1>
         </header>
         <div class="container">
             <div class="card">
@@ -104,6 +130,9 @@
                     <button class="btn btn-primary" onclick="doAnswer()">СОЗДАТЬ ANSWER</button>
                 </div>
                 <button class="btn btn-primary" style="margin-top:10px; background:#fff; color:#000;" onclick="doConnect()">ПОДКЛЮЧИТЬ</button>
+                
+                <button class="btn btn-danger" style="margin-top:10px;" onclick="cancelConnect()">ОТМЕНА</button>
+                
                 <div id="status-text" style="text-align:center; font-size:12px; margin-top:15px; color:yellow;">Ожидание...</div>
             </div>
         </div>
@@ -111,11 +140,11 @@
 
     <div id="screen-chat" class="screen hidden">
         <header>
-            <div><span id="chat-partner-name">Чат</span></div>
-            <div style="display: flex; gap: 5px; align-items: center;">
-                <button class="btn-secondary" style="padding:5px 8px; border-radius:8px; font-size:11px;" onclick="clearMyHistory()">Очистить</button>
-                <button class="btn-secondary" style="padding:5px 8px; border-radius:8px; font-size:11px;" onclick="location.reload()">Выход</button>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button class="btn-secondary" style="padding:6px 12px; border-radius:8px; font-size:14px; display:flex; align-items:center;" onclick="goBackToMain()">❮ Назад</button>
+                <span id="chat-partner-name" style="font-weight:bold; font-size: 16px;">Чат</span>
             </div>
+            <button class="btn-secondary" style="padding:6px 10px; border-radius:8px; font-size:11px;" onclick="deleteCurrentChat()">Удалить чат</button>
         </header>
         <div id="chat-messages"></div>
         <div id="file-progress-container"><div id="file-progress-bar"></div></div>
@@ -129,15 +158,30 @@
 
 <script>
     const $ = id => document.getElementById(id);
-    let pc, dataChannel, myNick = localStorage.getItem('pg_nick');
-    let history = JSON.parse(localStorage.getItem('pg_history') || '[]');
-    let incomingChunks = {}, currentFileMeta = null;
+    let myNick = localStorage.getItem('pg_nick');
+    
+    // Структура данных для хранения нескольких чатов
+    // pg_chats: { "chatId_1": { name: "Рома", history: [...] }, ... }
+    let chatsData = JSON.parse(localStorage.getItem('pg_chats') || '{}');
+    
+    // Активные WebRTC соединения: { "chatId_1": { pc, channel }, ... }
+    let activeConnections = {}; 
+    
+    let activeChatId = null; // ID чата, который открыт прямо сейчас
+    
+    // Временные переменные для экрана подключения
+    let tempPc = null;
+    let incomingChunks = {};
+    let currentFileMeta = {};
+
     let mediaRecorder, audioChunks = [], isRecording = false;
 
     window.onload = () => {
         if (!myNick) showScreen('screen-nick');
-        else showScreen('screen-connect');
-        initRTC();
+        else {
+            renderMainList();
+            showScreen('screen-main');
+        }
     };
 
     function showScreen(id) {
@@ -145,32 +189,90 @@
         $(id).classList.remove('hidden');
     }
 
-    function initRTC() {
-        pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-        pc.ondatachannel = e => setupChannel(e.channel);
-        pc.onicecandidate = e => {
-            if (!e.candidate && pc.localDescription) {
-                const sdp = btoa(JSON.stringify(pc.localDescription));
-                if (pc.localDescription.type === 'offer') $('sdp-offer').value = sdp;
+    function handleSaveNick() {
+        const n = $('nick-input').value.trim();
+        if (n) { localStorage.setItem('pg_nick', n); myNick = n; renderMainList(); showScreen('screen-main'); }
+    }
+
+    function clearNick() { 
+        if(confirm("Выйти из профиля? Все чаты сохранятся, но имя будет удалено.")) {
+            localStorage.removeItem('pg_nick'); location.reload(); 
+        }
+    }
+
+    // --- ЛОГИКА ГЛАВНОГО МЕНЮ ---
+    function renderMainList() {
+        const list = $('chats-list-container');
+        list.innerHTML = "";
+        const chatIds = Object.keys(chatsData);
+
+        if (chatIds.length === 0) {
+            list.innerHTML = `<div class="empty-state">У вас пока нет чатов.<br>Нажмите <b>+</b> чтобы добавить собеседника.</div>`;
+            return;
+        }
+
+        // Сортируем (пока просто отображаем все)
+        chatIds.forEach(id => {
+            const chat = chatsData[id];
+            const isOnline = !!(activeConnections[id] && activeConnections[id].channel.readyState === "open");
+            const lastMsg = chat.history.length > 0 ? chat.history[chat.history.length - 1].content : 'Нет сообщений';
+            let displayMsg = typeof lastMsg === 'string' && lastMsg.length > 30 ? lastMsg.substring(0, 30) + "..." : lastMsg;
+            if (chat.history.length > 0) {
+                const lastType = chat.history[chat.history.length-1].type;
+                if (lastType === 'image') displayMsg = '🖼️ Фото';
+                if (lastType === 'video') displayMsg = '🎥 Видео';
+                if (lastType === 'audio') displayMsg = '🎤 Голосовое';
+            }
+
+            const item = document.createElement('div');
+            item.className = 'chat-item';
+            item.onclick = () => openChat(id);
+            item.innerHTML = `
+                <div class="chat-info">
+                    <div class="chat-name">
+                        <span class="status-dot ${isOnline ? 'online' : ''}"></span>
+                        ${chat.name}
+                    </div>
+                    <div class="chat-last-msg">${displayMsg}</div>
+                </div>
+            `;
+            list.appendChild(item);
+        });
+    }
+
+    // --- ЛОГИКА ЭКРАНА ПОДКЛЮЧЕНИЯ (ПЛЮСИК И ОТМЕНА) ---
+    function openConnectScreen() {
+        if (tempPc) tempPc.close();
+        $('sdp-offer').value = '';
+        $('sdp-answer').value = '';
+        $('status-text').innerText = "Ожидание...";
+        
+        // Создаем временное соединение для нового собеседника
+        tempPc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        tempPc.ondatachannel = e => handleNewChannel(e.channel, tempPc);
+        tempPc.onicecandidate = e => {
+            if (!e.candidate && tempPc.localDescription) {
+                const sdp = btoa(JSON.stringify(tempPc.localDescription));
+                if (tempPc.localDescription.type === 'offer') $('sdp-offer').value = sdp;
                 else $('sdp-answer').value = sdp;
                 $('status-text').innerText = "Код готов! Скопируйте его.";
             }
         };
+        showScreen('screen-connect');
     }
 
-    function handleSaveNick() {
-        const n = $('nick-input').value.trim();
-        if (n) { localStorage.setItem('pg_nick', n); myNick = n; showScreen('screen-connect'); }
+    function cancelConnect() {
+        if (tempPc) { tempPc.close(); tempPc = null; }
+        renderMainList();
+        showScreen('screen-main');
     }
-
-    function clearNick() { localStorage.clear(); location.reload(); }
 
     async function doOffer() {
         try {
-            dataChannel = pc.createDataChannel("chat");
-            setupChannel(dataChannel);
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
+            const chan = tempPc.createDataChannel("chat");
+            handleNewChannel(chan, tempPc);
+            const offer = await tempPc.createOffer();
+            await tempPc.setLocalDescription(offer);
         } catch(e) { alert("Ошибка создания Offer: " + e.message); }
     }
 
@@ -178,9 +280,9 @@
         const o = $('sdp-offer').value.trim();
         if (!o) return alert("Сначала вставьте Offer друга!");
         try {
-            await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(o))));
-            const a = await pc.createAnswer();
-            await pc.setLocalDescription(a);
+            await tempPc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(o))));
+            const a = await tempPc.createAnswer();
+            await tempPc.setLocalDescription(a);
         } catch(e) { alert("Неверный код Offer!"); }
     }
 
@@ -188,38 +290,117 @@
         const a = $('sdp-answer').value.trim();
         if (!a) return alert("Вставьте Answer!");
         try {
-            await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(a))));
+            await tempPc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(a))));
         } catch(e) { alert("Неверный код Answer!"); }
     }
 
-    function setupChannel(chan) {
-        dataChannel = chan;
-        dataChannel.binaryType = 'arraybuffer';
-        dataChannel.onopen = () => {
-            showScreen('screen-chat');
-            renderHistory();
-            dataChannel.send(JSON.stringify({type:'nick', val: myNick}));
+    // --- УПРАВЛЕНИЕ МНОЖЕСТВОМ КАНАЛОВ ---
+    function handleNewChannel(chan, pc) {
+        chan.binaryType = 'arraybuffer';
+        
+        // Генерируем уникальный ID для этого чата
+        const newChatId = "chat_" + Date.now();
+        
+        chan.onopen = () => {
+            // Соединение установлено! Переносим из temp в активные
+            activeConnections[newChatId] = { pc: pc, channel: chan };
+            chatsData[newChatId] = { name: "Неизвестный", history: [] };
+            
+            tempPc = null; // Очищаем временный
+            incomingChunks[newChatId] = {};
+            
+            // Отправляем свой ник собеседнику
+            chan.send(JSON.stringify({type:'nick', val: myNick}));
+            
+            // Открываем чат
+            openChat(newChatId);
         };
-        dataChannel.onmessage = e => {
+
+        chan.onmessage = e => {
             if (typeof e.data === 'string') {
                 const d = JSON.parse(e.data);
-                if (d.type === 'nick') $('chat-partner-name').innerText = d.val;
-                else if (d.type === 'file-start') { currentFileMeta = d; incomingChunks[d.name] = []; }
+                if (d.type === 'nick') {
+                    chatsData[newChatId].name = d.val;
+                    saveData();
+                    if (activeChatId === newChatId) $('chat-partner-name').innerText = d.val;
+                    renderMainList();
+                }
+                else if (d.type === 'file-start') { 
+                    currentFileMeta[newChatId] = d; 
+                    incomingChunks[newChatId][d.name] = []; 
+                }
                 else if (d.type === 'file-end') {
-                    const blob = new Blob(incomingChunks[d.name], { type: d.mime });
-                    saveMsg(URL.createObjectURL(blob), 'partner', d.fileType, d.name);
-                } else saveMsg(d.content, 'partner', d.type);
-            } else if (currentFileMeta) {
-                incomingChunks[currentFileMeta.name].push(e.data);
+                    const blob = new Blob(incomingChunks[newChatId][d.name], { type: d.mime });
+                    saveMsg(newChatId, URL.createObjectURL(blob), 'partner', d.fileType, d.name);
+                    delete incomingChunks[newChatId][d.name];
+                } 
+                else {
+                    saveMsg(newChatId, d.content, 'partner', d.type);
+                }
+            } else if (currentFileMeta[newChatId]) {
+                incomingChunks[newChatId][currentFileMeta[newChatId].name].push(e.data);
             }
         };
-        dataChannel.onclose = () => { alert("Собеседник отключился."); location.reload(); };
+
+        chan.onclose = () => { 
+            delete activeConnections[newChatId];
+            renderMainList();
+            if(activeChatId === newChatId) {
+                alert("Собеседник отключился. Соединение разорвано.");
+            }
+        };
     }
 
-    // --- ИСПРАВЛЕННЫЕ ГОЛОСОВЫЕ СООБЩЕНИЯ ---
+    // --- ЛОГИКА ВНУТРИ ЧАТА ---
+    function openChat(id) {
+        activeChatId = id;
+        const chat = chatsData[id];
+        $('chat-partner-name').innerText = chat.name;
+        renderHistory(id);
+        showScreen('screen-chat');
+    }
+
+    function goBackToMain() {
+        activeChatId = null;
+        renderMainList();
+        showScreen('screen-main');
+    }
+
+    function deleteCurrentChat() {
+        if (confirm("Вы уверены, что хотите удалить этот чат и историю?")) {
+            if (activeConnections[activeChatId]) {
+                activeConnections[activeChatId].pc.close();
+                delete activeConnections[activeChatId];
+            }
+            delete chatsData[activeChatId];
+            saveData();
+            goBackToMain();
+        }
+    }
+
+    function handleSendText() {
+        const val = $('msg-input').value.trim();
+        if (!val || !activeChatId) return;
+        
+        const conn = activeConnections[activeChatId];
+        if (conn && conn.channel.readyState === "open") {
+            conn.channel.send(JSON.stringify({type:'text', content: val}));
+            saveMsg(activeChatId, val, 'me', 'text');
+            $('msg-input').value = "";
+        } else {
+            alert("Собеседник не в сети. Нужно переподключиться.");
+        }
+    }
+
+    // --- ГОЛОСОВЫЕ СООБЩЕНИЯ ---
     const startRecord = async (e) => {
-        if (e) e.preventDefault(); // Блокируем двойное срабатывание на смартфонах
-        if (isRecording) return;
+        if (e) e.preventDefault();
+        if (isRecording || !activeChatId) return;
+        
+        const conn = activeConnections[activeChatId];
+        if (!conn || conn.channel.readyState !== "open") {
+            return alert("Собеседник не в сети.");
+        }
         
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -234,14 +415,9 @@
                 isRecording = false;
                 const mimeType = mediaRecorder.mimeType || 'audio/webm';
                 const blob = new Blob(audioChunks, { type: mimeType });
-                
-                // Освобождаем микрофон (убираем значок из шторки)
                 stream.getTracks().forEach(track => track.stop());
 
-                // Защита от пустых файлов (если тапнули слишком быстро)
                 if (blob.size < 100) return; 
-
-                // Уникальное имя для каждого файла, чтобы браузер не путался
                 const fileName = "voice_" + Date.now() + (mimeType.includes('webm') ? '.webm' : '.ogg');
                 sendFile(new File([blob], fileName, {type: mimeType}), 'audio');
             };
@@ -249,9 +425,7 @@
             mediaRecorder.start();
             isRecording = true;
             $('voice-btn').classList.add('recording');
-        } catch(err) { 
-            alert("Ошибка доступа к микрофону."); 
-        }
+        } catch(err) { alert("Ошибка микрофона."); }
     };
 
     const stopRecord = (e) => {
@@ -262,14 +436,13 @@
         }
     };
 
-    // Надежная привязка кнопок для смартфонов и ПК
     const voiceBtn = $('voice-btn');
     voiceBtn.addEventListener('touchstart', startRecord);
     voiceBtn.addEventListener('touchend', stopRecord);
     voiceBtn.addEventListener('touchcancel', stopRecord);
     voiceBtn.addEventListener('mousedown', startRecord);
     voiceBtn.addEventListener('mouseup', stopRecord);
-    voiceBtn.addEventListener('mouseleave', stopRecord); // Если палец соскользнул с кнопки
+    voiceBtn.addEventListener('mouseleave', stopRecord);
 
     // --- ПЕРЕДАЧА ФАЙЛОВ ---
     async function handleMedia() {
@@ -278,41 +451,45 @@
     }
 
     async function sendFile(file, fileType) {
-        if (dataChannel?.readyState !== "open") return;
+        if (!activeChatId) return;
+        const conn = activeConnections[activeChatId];
+        if (!conn || conn.channel.readyState !== "open") return alert("Собеседник не в сети.");
+
         $('file-progress-container').style.display = 'block';
-        dataChannel.send(JSON.stringify({type: 'file-start', name: file.name, mime: file.type, fileType: fileType}));
+        conn.channel.send(JSON.stringify({type: 'file-start', name: file.name, mime: file.type, fileType: fileType}));
+        
         const buffer = await file.arrayBuffer();
         const chunkSize = 16384;
         for (let i = 0; i < buffer.byteLength; i += chunkSize) {
-            dataChannel.send(buffer.slice(i, i + chunkSize));
+            conn.channel.send(buffer.slice(i, i + chunkSize));
             $('file-progress-bar').style.width = ((i / buffer.byteLength) * 100) + '%';
         }
-        dataChannel.send(JSON.stringify({type: 'file-end', name: file.name, fileType: fileType}));
+        
+        conn.channel.send(JSON.stringify({type: 'file-end', name: file.name, fileType: fileType}));
         $('file-progress-container').style.display = 'none';
         $('file-progress-bar').style.width = '0%';
         
-        saveMsg(URL.createObjectURL(file), 'me', fileType, file.name);
-        if (fileType !== 'audio') $('media-input').value = ""; // Очищаем инпут
+        saveMsg(activeChatId, URL.createObjectURL(file), 'me', fileType, file.name);
+        if (fileType !== 'audio') $('media-input').value = ""; 
     }
 
-    function handleSendText() {
-        const val = $('msg-input').value.trim();
-        if (val && dataChannel?.readyState === "open") {
-            dataChannel.send(JSON.stringify({type:'text', content: val}));
-            saveMsg(val, 'me', 'text');
-            $('msg-input').value = "";
-        }
+    // --- СОХРАНЕНИЕ И ОТРИСОВКА ---
+    function saveData() {
+        localStorage.setItem('pg_chats', JSON.stringify(chatsData));
     }
 
-    function saveMsg(content, side, type, name = '') {
+    function saveMsg(targetChatId, content, side, type, name = '') {
         const msg = { content, side, type, name, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
         
         if (type !== 'image' && type !== 'video') {
-            history.push(msg);
-            if (history.length > 50) history.shift();
-            localStorage.setItem('pg_history', JSON.stringify(history));
+            chatsData[targetChatId].history.push(msg);
+            if (chatsData[targetChatId].history.length > 50) chatsData[targetChatId].history.shift();
+            saveData();
         }
-        renderMsg(msg);
+        
+        if (activeChatId === targetChatId) {
+            renderMsg(msg);
+        }
     }
 
     function renderMsg(m) {
@@ -328,18 +505,12 @@
         $('chat-messages').scrollTop = $('chat-messages').scrollHeight;
     }
 
-    function renderHistory() {
+    function renderHistory(id) {
         $('chat-messages').innerHTML = "";
-        history.forEach(renderMsg);
-        $('chat-messages').scrollTop = $('chat-messages').scrollHeight;
-    }
-
-    function clearMyHistory() {
-        if (confirm("Очистить историю у себя?")) {
-            history = [];
-            localStorage.removeItem('pg_history');
-            renderHistory();
+        if (chatsData[id] && chatsData[id].history) {
+            chatsData[id].history.forEach(renderMsg);
         }
+        $('chat-messages').scrollTop = $('chat-messages').scrollHeight;
     }
 
     $('msg-input').onkeypress = e => e.key === 'Enter' && handleSendText();
