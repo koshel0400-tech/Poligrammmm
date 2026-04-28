@@ -46,6 +46,8 @@
         .btn-primary { background: var(--primary); color: #000; }
         .btn-secondary { background: var(--accent); color: #fff; border: 1px solid var(--border); }
 
+        .instruction { font-size: 12px; color: var(--text-dim); margin-bottom: 15px; line-height: 1.5; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 10px; border: 1px solid var(--border); }
+
         #chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
         
         .bubble { 
@@ -68,7 +70,6 @@
         #file-progress-container { width: 100%; background: var(--bg); height: 4px; display: none; }
         #file-progress-bar { height: 100%; background: var(--primary); width: 0%; transition: 0.1s; }
 
-        /* Фиксированный размер для корректного отображения плеера */
         audio.custom-player { width: 220px; height: 45px; margin-top: 8px; display: block; }
     </style>
 </head>
@@ -91,11 +92,16 @@
         </header>
         <div class="container">
             <div class="card">
-                <textarea id="sdp-offer" placeholder="Offer"></textarea>
-                <textarea id="sdp-answer" placeholder="Answer"></textarea>
+                <div class="instruction">
+                    <b>Хост:</b> Создай Offer -> Отправь другу -> Вставь Answer -> Подключи.<br><br>
+                    <b>Клиент:</b> Вставь Offer -> Создай Answer -> Отправь другу.
+                </div>
+                
+                <textarea id="sdp-offer" placeholder="Offer (Код инициатора)"></textarea>
+                <textarea id="sdp-answer" placeholder="Answer (Код ответчика)"></textarea>
                 <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-primary" onclick="doOffer()">OFFER</button>
-                    <button class="btn btn-primary" onclick="doAnswer()">ANSWER</button>
+                    <button class="btn btn-primary" onclick="doOffer()">СОЗДАТЬ OFFER</button>
+                    <button class="btn btn-primary" onclick="doAnswer()">СОЗДАТЬ ANSWER</button>
                 </div>
                 <button class="btn btn-primary" style="margin-top:10px; background:#fff; color:#000;" onclick="doConnect()">ПОДКЛЮЧИТЬ</button>
                 <div id="status-text" style="text-align:center; font-size:12px; margin-top:15px; color:yellow;">Ожидание...</div>
@@ -126,7 +132,7 @@
     let pc, dataChannel, myNick = localStorage.getItem('pg_nick');
     let history = JSON.parse(localStorage.getItem('pg_history') || '[]');
     let incomingChunks = {}, currentFileMeta = null;
-    let mediaRecorder, audioChunks = [];
+    let mediaRecorder, audioChunks = [], isRecording = false;
 
     window.onload = () => {
         if (!myNick) showScreen('screen-nick');
@@ -147,6 +153,7 @@
                 const sdp = btoa(JSON.stringify(pc.localDescription));
                 if (pc.localDescription.type === 'offer') $('sdp-offer').value = sdp;
                 else $('sdp-answer').value = sdp;
+                $('status-text').innerText = "Код готов! Скопируйте его.";
             }
         };
     }
@@ -164,25 +171,25 @@
             setupChannel(dataChannel);
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-        } catch(e) { alert(e.message); }
+        } catch(e) { alert("Ошибка создания Offer: " + e.message); }
     }
 
     async function doAnswer() {
         const o = $('sdp-offer').value.trim();
-        if (!o) return;
+        if (!o) return alert("Сначала вставьте Offer друга!");
         try {
             await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(o))));
             const a = await pc.createAnswer();
             await pc.setLocalDescription(a);
-        } catch(e) { alert("Ошибка Offer"); }
+        } catch(e) { alert("Неверный код Offer!"); }
     }
 
     async function doConnect() {
         const a = $('sdp-answer').value.trim();
-        if (!a) return;
+        if (!a) return alert("Вставьте Answer!");
         try {
             await pc.setRemoteDescription(new RTCSessionDescription(JSON.parse(atob(a))));
-        } catch(e) { alert("Ошибка Answer"); }
+        } catch(e) { alert("Неверный код Answer!"); }
     }
 
     function setupChannel(chan) {
@@ -206,38 +213,65 @@
                 incomingChunks[currentFileMeta.name].push(e.data);
             }
         };
+        dataChannel.onclose = () => { alert("Собеседник отключился."); location.reload(); };
     }
 
-    // ГОЛОСОВЫЕ СООБЩЕНИЯ
-    const startRecord = async () => {
+    // --- ИСПРАВЛЕННЫЕ ГОЛОСОВЫЕ СООБЩЕНИЯ ---
+    const startRecord = async (e) => {
+        if (e) e.preventDefault(); // Блокируем двойное срабатывание на смартфонах
+        if (isRecording) return;
+        
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
             audioChunks = [];
-            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-            mediaRecorder.onstop = () => {
-                const mimeType = mediaRecorder.mimeType;
-                const blob = new Blob(audioChunks, { type: mimeType });
-                sendFile(new File([blob], "voice_msg", {type: mimeType}), 'audio');
+            
+            mediaRecorder.ondataavailable = ev => {
+                if (ev.data.size > 0) audioChunks.push(ev.data);
             };
+            
+            mediaRecorder.onstop = () => {
+                isRecording = false;
+                const mimeType = mediaRecorder.mimeType || 'audio/webm';
+                const blob = new Blob(audioChunks, { type: mimeType });
+                
+                // Освобождаем микрофон (убираем значок из шторки)
+                stream.getTracks().forEach(track => track.stop());
+
+                // Защита от пустых файлов (если тапнули слишком быстро)
+                if (blob.size < 100) return; 
+
+                // Уникальное имя для каждого файла, чтобы браузер не путался
+                const fileName = "voice_" + Date.now() + (mimeType.includes('webm') ? '.webm' : '.ogg');
+                sendFile(new File([blob], fileName, {type: mimeType}), 'audio');
+            };
+            
             mediaRecorder.start();
+            isRecording = true;
             $('voice-btn').classList.add('recording');
-        } catch(e) { alert("Ошибка микрофона: " + e.message); }
+        } catch(err) { 
+            alert("Ошибка доступа к микрофону."); 
+        }
     };
 
-    const stopRecord = () => {
-        if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    const stopRecord = (e) => {
+        if (e) e.preventDefault();
+        if (isRecording && mediaRecorder.state !== "inactive") {
             mediaRecorder.stop();
             $('voice-btn').classList.remove('recording');
         }
     };
 
-    $('voice-btn').addEventListener('touchstart', (e) => { e.preventDefault(); startRecord(); });
-    $('voice-btn').addEventListener('touchend', stopRecord);
-    $('voice-btn').addEventListener('mousedown', startRecord);
-    $('voice-btn').addEventListener('mouseup', stopRecord);
+    // Надежная привязка кнопок для смартфонов и ПК
+    const voiceBtn = $('voice-btn');
+    voiceBtn.addEventListener('touchstart', startRecord);
+    voiceBtn.addEventListener('touchend', stopRecord);
+    voiceBtn.addEventListener('touchcancel', stopRecord);
+    voiceBtn.addEventListener('mousedown', startRecord);
+    voiceBtn.addEventListener('mouseup', stopRecord);
+    voiceBtn.addEventListener('mouseleave', stopRecord); // Если палец соскользнул с кнопки
 
-    // ФАЙЛЫ
+    // --- ПЕРЕДАЧА ФАЙЛОВ ---
     async function handleMedia() {
         const file = $('media-input').files[0];
         if (file) sendFile(file, file.type.startsWith('video') ? 'video' : 'image');
@@ -255,7 +289,10 @@
         }
         dataChannel.send(JSON.stringify({type: 'file-end', name: file.name, fileType: fileType}));
         $('file-progress-container').style.display = 'none';
+        $('file-progress-bar').style.width = '0%';
+        
         saveMsg(URL.createObjectURL(file), 'me', fileType, file.name);
+        if (fileType !== 'audio') $('media-input').value = ""; // Очищаем инпут
     }
 
     function handleSendText() {
@@ -269,6 +306,7 @@
 
     function saveMsg(content, side, type, name = '') {
         const msg = { content, side, type, name, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) };
+        
         if (type !== 'image' && type !== 'video') {
             history.push(msg);
             if (history.length > 50) history.shift();
@@ -297,7 +335,7 @@
     }
 
     function clearMyHistory() {
-        if (confirm("Очистить историю?")) {
+        if (confirm("Очистить историю у себя?")) {
             history = [];
             localStorage.removeItem('pg_history');
             renderHistory();
